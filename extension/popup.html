@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Enter Key Control</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="24" height="24">
+    <h1>Enter Key Control</h1>
+  </header>
+
+  <section id="status" class="status" role="status" aria-live="polite">Checking this tab…</section>
+  <button id="reload" class="secondary" hidden>Reload tab to activate</button>
+
+  <label class="row">
+    <span>
+      <strong>Enabled everywhere</strong>
+      <small>Pause the extension on all sites</small>
+    </span>
+    <input type="checkbox" id="enabled" class="switch">
+  </label>
+
+  <label class="row" id="siteRow" hidden>
+    <span>
+      <strong>On <span id="siteName"></span></strong>
+      <small>Only affects this site</small>
+    </span>
+    <input type="checkbox" id="siteEnabled" class="switch">
+  </label>
+
+  <label class="row">
+    <span>
+      <strong>Send with</strong>
+      <small>Enter always adds a new line</small>
+    </span>
+    <select id="sendKey">
+      <option value="mod" id="modLabel">Ctrl + Enter</option>
+      <option value="alt" id="altLabel">Alt + Enter</option>
+    </select>
+  </label>
+
+  <details>
+    <summary>Supported sites</summary>
+    <ul id="sites"></ul>
+  </details>
+
+  <footer>Runs only in your browser. No data is collected or sent anywhere.</footer>
+
+  <script src="sites.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
