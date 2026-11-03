@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Popup harness</title>
+<script>
+  // Renders the real popup with stubbed chrome APIs. ?url= sets the active tab, ?loaded=0 simulates a stale tab.
+  const params = new URLSearchParams(location.search);
+  const store = {};
+  window.chrome = {
+    storage: { sync: { get: async (d) => ({ ...d, ...store }), set: async (p) => Object.assign(store, p) } },
+    tabs: {
+      query: async () => [{ id: 1, url: params.get("url") || "https://chatgpt.com/" }],
+      sendMessage: async () => { if (params.get("loaded") === "0") throw new Error("no receiver"); return { ok: true }; },
+      reload: () => { window.reloaded = true; }
+    }
+  };
+  window.store = store;
+  fetch("../extension/popup.html").then((r) => r.text()).then((html) => {
+    html = html.replace(/(href|src)="(?!http)([^"]+)"/g, '$1="../extension/$2"');
+    document.open(); document.write(html); document.close();
+  });
+</script>
