@@ -62,9 +62,17 @@ Serve the repository root and open the harnesses in Chrome:
 python -m http.server 8765
 ```
 
-- `http://localhost:8765/test/harness.html`: mock editors (a send-on-Enter textarea, a ProseMirror-style editor, an editor with only a send button, and a search box that must stay untouched). Press real keys in each box; `window.log` and the panel at the bottom show what was sent. Synthetic events are ignored by design, so the checks need real key presses.
+- `http://localhost:8765/test/harness.html`: mock editors (a send-on-Enter textarea, a ProseMirror-style editor, an editor with only a send button, one whose send button is `position: fixed`, and a search box that must stay untouched), plus a button that loads `content.js` a second time, as happens after an update. Press real keys in each box; `window.log` and the panel at the bottom show what was sent. Synthetic events are ignored by design, so the checks need real key presses.
 - `http://localhost:8765/test/popup-harness.html?url=https://claude.ai/`: the real popup with stubbed Chrome APIs. Add `&loaded=0` to see the "reload this tab" state.
+
+The automatic checks need only Node.js and also run in CI on every push and pull request:
+
+```bash
+node test/check.mjs
+```
+
+They check the syntax of every script, that every file `manifest.json` points to exists, and that the hosts in `sites.js` match `host_permissions` and `content_scripts.matches`.
 
 ## License
 
-MIT
+[MIT](LICENSE)

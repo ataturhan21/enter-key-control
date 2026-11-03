@@ -25,11 +25,20 @@
   <label>Editor with no key handlers and a send button</label>
   <div class="composer">
     <div id="plain" contenteditable="true"></div>
-    <button class="send" type="button">Send</button>
+    <button class="send" type="button" data-log="button-sent">Send</button>
+  </div>
+
+  <label>Editor whose send button has position: fixed (bottom right)</label>
+  <div class="composer">
+    <div id="fixed" contenteditable="true"></div>
+    <button class="send" type="button" data-log="fixed-button-sent" style="position: fixed; right: 20px; bottom: 20px">Send (fixed)</button>
   </div>
 
   <label>Single-line search input (must be untouched)</label>
   <input id="search" type="text">
+
+  <button id="reinject" type="button">Load content.js again (as after an update)</button>
+  <span id="copies"></span>
 
   <div id="log"></div>
 
@@ -41,9 +50,9 @@
     window.chrome = {
       storage: {
         sync: { get(d, cb) { cb({ ...d, ...window.__testSettings }); }, set() {} },
-        onChanged: { addListener(fn) { window.__onChanged = fn; } }
+        onChanged: { addListener(fn) { window.__onChanged = fn; }, removeListener() {} }
       },
-      runtime: { onMessage: { addListener() {} } }
+      runtime: { onMessage: { addListener() {}, removeListener() {} } }
     };
     window.setSetting = (patch) => {
       const changes = {};
@@ -64,12 +73,24 @@
         if (e.shiftKey) { document.execCommand("insertLineBreak"); note("pm-break"); }
         else { note("pm-sent:" + JSON.stringify(pm.innerText)); pm.innerHTML = ""; }
       });
-      document.querySelector(".send").addEventListener("click", () => {
-        note("button-sent:" + JSON.stringify(document.getElementById("plain").innerText));
-        document.getElementById("plain").innerHTML = "";
-      });
+      for (const btn of document.querySelectorAll(".send")) {
+        btn.addEventListener("click", () => {
+          const editor = btn.parentElement.querySelector("[contenteditable]");
+          note(btn.dataset.log + ":" + JSON.stringify(editor.innerText));
+          editor.innerHTML = "";
+        });
+      }
       document.getElementById("search").addEventListener("keydown", (e) => {
         if (e.key === "Enter") note("search-enter");
+      });
+      // After reinjecting, one Enter must still add exactly one new line (the old copy is retired).
+      let copies = 1;
+      document.getElementById("reinject").addEventListener("click", () => {
+        const n = ++copies;
+        const script = document.createElement("script");
+        script.src = "../extension/content.js?copy=" + n;
+        script.onload = () => { document.getElementById("copies").textContent = n + " copies loaded"; note("reinjected:" + n); };
+        document.body.append(script);
       });
     });
   </script>

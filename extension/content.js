@@ -1,8 +1,10 @@
 // Enter inserts a new line; the send shortcut (Ctrl/⌘+Enter or Alt+Enter) sends.
 // Runs entirely in the page: no network requests, nothing leaves the browser.
 (() => {
-  if (window.__ekcLoaded) return;
-  window.__ekcLoaded = true;
+  // background.js re-injects this file into open tabs on install and update. A copy from the previous
+  // version can still be running in this page with dead chrome.* listeners, so retire it and take over
+  // instead of bailing out; exactly one copy ever handles a key press.
+  if (typeof window.__ekcTeardown === "function") window.__ekcTeardown();
 
   const { DEFAULTS, siteForHost } = self.EKC;
   const site = siteForHost(location.hostname);
@@ -10,13 +12,15 @@
   const synthetic = new WeakSet();
 
   chrome.storage.sync.get(DEFAULTS, (stored) => { settings = stored; });
-  chrome.storage.onChanged.addListener((changes, area) => {
+  const onStorageChanged = (changes, area) => {
     if (area !== "sync") return;
     for (const key of Object.keys(changes)) settings[key] = changes[key].newValue;
-  });
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  };
+  const onPing = (msg, _sender, reply) => {
     if (msg && msg.type === "ekc:ping") reply({ ok: true, site: site && site.id, active: isActive() });
-  });
+  };
+  chrome.storage.onChanged.addListener(onStorageChanged);
+  chrome.runtime.onMessage.addListener(onPing);
 
   function isActive() {
     return Boolean(settings.enabled && site && !(settings.disabledSites || []).includes(site.id));
@@ -63,8 +67,11 @@
     }
   }
 
+  // Visible and enabled. getClientRects() is empty for display:none or detached buttons, but,
+  // unlike offsetParent, not for buttons with position: fixed.
   function isUsable(btn) {
-    return btn && !btn.disabled && btn.getAttribute("aria-disabled") !== "true" && btn.offsetParent !== null;
+    return Boolean(btn) && !btn.disabled && btn.getAttribute("aria-disabled") !== "true" &&
+      btn.getClientRects().length > 0;
   }
 
   // The send button closest to the editor, so an "edit message" box never triggers the main composer.
@@ -91,7 +98,7 @@
     if (form && typeof form.requestSubmit === "function") form.requestSubmit();
   }
 
-  window.addEventListener("keydown", (e) => {
+  function onKeydown(e) {
     if (synthetic.has(e) || !e.isTrusted) return;
     if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return; // leave IME composition alone
     if (!isActive()) return;
@@ -105,5 +112,16 @@
     e.stopImmediatePropagation();
     if (isSendShortcut(e)) send(target);
     else insertNewline(target);
-  }, true);
+  }
+
+  window.addEventListener("keydown", onKeydown, true);
+  window.__ekcTeardown = () => {
+    window.removeEventListener("keydown", onKeydown, true);
+    try {
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+      chrome.runtime.onMessage.removeListener(onPing);
+    } catch {
+      // An orphaned copy's chrome.* APIs can throw; its keydown listener is what matters.
+    }
+  };
 })();
