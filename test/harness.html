@@ -37,6 +37,9 @@
   <label>Single-line search input (must be untouched)</label>
   <input id="search" type="text">
 
+  <button id="reinject" type="button">Load content.js again (as after an update)</button>
+  <span id="copies"></span>
+
   <div id="log"></div>
 
   <script>
@@ -47,9 +50,9 @@
     window.chrome = {
       storage: {
         sync: { get(d, cb) { cb({ ...d, ...window.__testSettings }); }, set() {} },
-        onChanged: { addListener(fn) { window.__onChanged = fn; } }
+        onChanged: { addListener(fn) { window.__onChanged = fn; }, removeListener() {} }
       },
-      runtime: { onMessage: { addListener() {} } }
+      runtime: { onMessage: { addListener() {}, removeListener() {} } }
     };
     window.setSetting = (patch) => {
       const changes = {};
@@ -79,6 +82,15 @@
       }
       document.getElementById("search").addEventListener("keydown", (e) => {
         if (e.key === "Enter") note("search-enter");
+      });
+      // After reinjecting, one Enter must still add exactly one new line (the old copy is retired).
+      let copies = 1;
+      document.getElementById("reinject").addEventListener("click", () => {
+        const n = ++copies;
+        const script = document.createElement("script");
+        script.src = "../extension/content.js?copy=" + n;
+        script.onload = () => { document.getElementById("copies").textContent = n + " copies loaded"; note("reinjected:" + n); };
+        document.body.append(script);
       });
     });
   </script>
