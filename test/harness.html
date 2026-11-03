@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Enter Key Control test harness</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 20px; max-width: 640px; }
+    textarea, [contenteditable], input { display: block; width: 100%; min-height: 40px; margin: 6px 0 16px; border: 1px solid #999; padding: 6px; }
+    #log { white-space: pre; background: #f4f4f4; padding: 8px; min-height: 60px; }
+  </style>
+</head>
+<body>
+  <!--
+    Manual/automated harness: serve this repo's root over http, open test/harness.html, then
+    press real keys (synthetic events are ignored by design). window.log holds what happened.
+  -->
+  <h1>Enter Key Control harness</h1>
+
+  <label>Textarea that sends on Enter (like DeepSeek)</label>
+  <textarea id="ta"></textarea>
+
+  <label>Rich editor: Shift+Enter = break, Enter = send (like ProseMirror)</label>
+  <div id="pm" contenteditable="true"></div>
+
+  <label>Editor with no key handlers and a send button</label>
+  <div class="composer">
+    <div id="plain" contenteditable="true"></div>
+    <button class="send" type="button">Send</button>
+  </div>
+
+  <label>Single-line search input (must be untouched)</label>
+  <input id="search" type="text">
+
+  <div id="log"></div>
+
+  <script>
+    window.log = [];
+    const note = (m) => { log.push(m); document.getElementById("log").textContent = log.join("\n"); };
+
+    window.__testSettings = {};
+    window.chrome = {
+      storage: {
+        sync: { get(d, cb) { cb({ ...d, ...window.__testSettings }); }, set() {} },
+        onChanged: { addListener(fn) { window.__onChanged = fn; } }
+      },
+      runtime: { onMessage: { addListener() {} } }
+    };
+    window.setSetting = (patch) => {
+      const changes = {};
+      for (const k in patch) changes[k] = { newValue: patch[k] };
+      window.__onChanged(changes, "sync");
+    };
+
+    // Page handlers registered after the extension, as on a real site.
+    window.addEventListener("load", () => {
+      const ta = document.getElementById("ta");
+      ta.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); note("ta-sent:" + JSON.stringify(ta.value)); ta.value = ""; }
+      });
+      const pm = document.getElementById("pm");
+      pm.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (e.shiftKey) { document.execCommand("insertLineBreak"); note("pm-break"); }
+        else { note("pm-sent:" + JSON.stringify(pm.innerText)); pm.innerHTML = ""; }
+      });
+      document.querySelector(".send").addEventListener("click", () => {
+        note("button-sent:" + JSON.stringify(document.getElementById("plain").innerText));
+        document.getElementById("plain").innerHTML = "";
+      });
+      document.getElementById("search").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") note("search-enter");
+      });
+    });
+  </script>
+  <script src="../extension/sites.js"></script>
+  <script>
+    // Treat this page as a supported site whose send button is ".send".
+    self.EKC.siteForHost = () => ({ id: "test", name: "Test", hosts: [location.hostname], sendButtons: ["button.send"] });
+  </script>
+  <script src="../extension/content.js"></script>
+</body>
+</html>
