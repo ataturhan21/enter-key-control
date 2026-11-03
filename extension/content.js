@@ -63,8 +63,11 @@
     }
   }
 
+  // Visible and enabled. getClientRects() is empty for display:none or detached buttons, but,
+  // unlike offsetParent, not for buttons with position: fixed.
   function isUsable(btn) {
-    return btn && !btn.disabled && btn.getAttribute("aria-disabled") !== "true" && btn.offsetParent !== null;
+    return Boolean(btn) && !btn.disabled && btn.getAttribute("aria-disabled") !== "true" &&
+      btn.getClientRects().length > 0;
   }
 
   // The send button closest to the editor, so an "edit message" box never triggers the main composer.
